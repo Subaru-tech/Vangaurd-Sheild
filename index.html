@@ -274,7 +274,7 @@ iframe,
         stroke-linecap: round;
         stroke-dasharray: 754;
         stroke-dashoffset: 754;
-        transition: stroke-dashoffset 0.3s ease-out;
+        transition: stroke-dashoffset 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
     }
 
     .v3d-logo-container {
@@ -398,44 +398,65 @@ iframe,
         if(percentText) percentText.innerText = Math.floor(percent) + "%";
     }
 
+    // --- SMOOTH PROGRESS ANIMATION HELPER ---
+    function animateProgressTo(target, duration, callback) {
+        const start = currentProgress;
+        const diff = target - start;
+        const startTs = performance.now();
+        function tick(now) {
+            const elapsed = now - startTs;
+            const t = Math.min(elapsed / duration, 1);
+            // cubic ease-in-out
+            const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            currentProgress = start + diff * ease;
+            setProgress(currentProgress);
+            if (t < 1) {
+                requestAnimationFrame(tick);
+            } else {
+                currentProgress = target;
+                setProgress(target);
+                if (callback) callback();
+            }
+        }
+        requestAnimationFrame(tick);
+    }
+
     // --- PROGRESS SIMULATION ---
     let currentProgress = 0;
     let isHiding = false;
     const startTime = Date.now();
 
     const progressInterval = setInterval(function() {
-        let increment = Math.random() * 1.5; 
-        if(currentProgress > 70) increment = Math.random() * 0.4;
+        let increment = Math.random() * 1.2; 
+        if(currentProgress > 60) increment = Math.random() * 0.5;
+        if(currentProgress > 80) increment = Math.random() * 0.2;
         
         if (currentProgress < 92) {
             currentProgress += increment;
             setProgress(currentProgress);
         }
-    }, 60);
+    }, 50);
 
-    // --- PROBLEM 1 FIX: THE "STABILIZATION BUFFER" ---
+    // --- SMOOTH FINISH ---
     function finishLoadingAndHide() {
         if (isHiding) return;
         clearInterval(progressInterval);
         
-        // 1. Fill the bar
-        setProgress(100);
-
-        // 2. STABILIZATION PHASE: 
-        // We wait 800ms AFTER PlayCanvas says "Ready".
-        // This gives the browser time to actually render the 3D canvas frames
-        // behind the loader so the user doesn't see a black flash.
-        setTimeout(function() {
-            hideLoader();
-        }, 800); 
+        // Smoothly animate 92% → 100% over 600ms
+        animateProgressTo(100, 600, function() {
+            // Stabilization: let browser composite the 3D behind the loader
+            setTimeout(hideLoader, 500);
+        });
     }
 
     function hideLoader() {
         if (isHiding) return;
         isHiding = true;
         
-        loaderDiv.style.transition = 'opacity 0.6s ease-out';
+        // Cinematic fade + slight scale-up reveal
+        loaderDiv.style.transition = 'opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1), transform 1.2s cubic-bezier(0.4, 0, 0.2, 1)';
         loaderDiv.style.opacity = '0';
+        loaderDiv.style.transform = 'scale(1.05)';
 
         setTimeout(function() {
             document.querySelectorAll('.loadingscreen').forEach(el => el.remove());
@@ -449,7 +470,7 @@ iframe,
             
             window.dispatchEvent(new Event('resize'));
             console.log('✅ Scene Ready');
-        }, 600);
+        }, 1300);
     }
 
     // --- LISTENERS ---
