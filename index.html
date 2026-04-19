@@ -464,6 +464,14 @@ iframe,
         }
     });
 
+    // --- FALLBACK FIX ---
+    // Since PlayCanvas might not fire the event on Vercel, force finish after 3.5s
+    setTimeout(function() {
+        if (!isHiding) {
+            finishLoadingAndHide();
+        }
+    }, 3500);
+
     // Watchdog for Firewall / Connection Issues
     setTimeout(function() {
         if (!isHiding && currentProgress < 95) {
